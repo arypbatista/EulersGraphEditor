@@ -1,5 +1,23 @@
 <!DOCTYPE html>
 <html>
+  <!--
+
+    This file is part of Euler's Graph Editor.
+
+    Euler's Graph Editor is free software: you can redistribute it and/or 
+    modify it under the terms of the GNU General Public License as published 
+    by the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Foobar is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+
+  -->
   <head>
     <meta charset="utf-8">
     <style>
@@ -24,6 +42,11 @@
     .link {
       stroke: #8093B0;
       stroke-width: 2;
+    }
+      
+    .arrow {
+      fill: #8093B0;
+      stroke: #8093B0;
     }
 
     </style>
@@ -58,9 +81,19 @@
         
       }
       
+      ul {
+        list-style: none;
+      }
       
       
-      section#editor {        
+      
+      section#editor {                
+      }
+      
+      
+      section#instructions .wrapper {
+        background: #E5E5E5;
+        padding: 5px;      
       }
       
       footer {
@@ -70,6 +103,26 @@
       .graph-editor {
         cursor: default;
       }
+      
+        .graph-editor .actions {
+          text-align: center;
+          position: relative;
+          bottom: 30px;
+        }
+      
+        .graph-editor .button {
+          background: #BAD5FF;
+          border-radius: 8px;
+          padding: 5px 10px 5px 10px;
+          margin: 0px 5px 0px 5px;
+          border: 2px solid #8093B0;
+        }
+      
+        .graph-editor .button:hover {
+            background: #D9E6FF;
+            
+          }
+      
     </style>
     
   </head>
@@ -88,259 +141,32 @@
       </div>
     </section>
     
+    <section id="instructions">
+      <div class="wrapper">
+        <h3>Instructions</h3>
+        <ul>
+          <li>
+            Press CLICK to add nodes.
+          </li>
+          <li>
+            Press ALT to drag nodes.
+          </li>
+          <li>
+            Press SHIFT to enter delete mode.
+          </li>
+          <li>
+            Press CTRL to enter linking mode.
+          </li>
+        </ul>
+      </div>
+    </section>
+    
     <footer>
       <div class="wrapper">
         
       </div>
     </footer>
     
-    <script>
-
-      function info(msg) {
-        console.log("[INFO] " + msg);
-      }
-
-      var width = 960,
-          height = 500;
-
-      var fill = d3.scale.category20();
-
-      var force = d3.layout.force()
-          .size([width, height])
-          .nodes([{}]) // initialize with a single node
-          .linkDistance(30)
-          .charge(-60)
-          .on("tick", tick);
-
-      var svg = d3.select("#eulers-graph-editor").append("svg")
-          .attr("width", width)
-          .attr("height", height)
-          .on("mousemove", mousemove)
-          .on("mousedown", mousedown);
-      
-      var linkAllAction = d3.select("#eulers-graph-editor").append("a")
-        .attr("class", "button")
-        .on("mousedown", linkAll)
-        .text("Link all");
-      
-      function linkAll() {
-        info("All nodes linked.")
-        forEach(nodes, function(n) {
-          forEach(nodes, function(m) {
-            if (!linkExists(n, m)) {
-              addLink(n, m);
-            }
-          });
-        });
-        update();
-      };
-
-
-      d3.select("body").on("keydown", keydown)
-                       .on("keyup", keyup);
-
-      svg.append("rect")
-          .attr("width", width)
-          .attr("height", height);
-
-      var nodes = force.nodes(),
-          links = force.links(),
-          node = svg.selectAll(".node"),
-          link = svg.selectAll(".link");
-    /*
-      var cursor = svg.append("circle")
-          .attr("r", 30)
-          .attr("transform", "translate(-100,-100)")
-          .attr("class", "cursor");
-    */
-
-      update();
-
-      function mousemove() {
-        //cursor.attr("transform", "translate(" + d3.mouse(this) + ")");
-      }
-
-        var linkMode = false;    
-
-      modes = {
-        "linking": false,
-        "deleting": false
-      }
-      
-      keyCodeModeMap = {
-        17: "linking",
-        16: "deleting",
-        999: "dragging"
-      }
-      
-      modeCallback = {
-        "linking" : function () {},
-        "deleting" : deleteNode,
-      }
-      
-      function aModeIsActive() {
-        return keys(cloneDiscarding(modes, function (k, v) { return !v })).length > 0;
-      }
-      
-      function getActiveMode() {
-        return keys(cloneDiscarding(modes, function (k, v) { return !v }))[0];
-      }
-      
-      function keyup() {               
-        if (d3.event.keyCode in keyCodeModeMap) {
-          mode = keyCodeModeMap[d3.event.keyCode];
-          if (modes[mode]) {
-            modes[mode] = false;
-            info("'" + mode + "' mode disabled");
-          }
-        }        
-      }
-      
-      function keydown() {
-        event = window.event;
-        
-        if (d3.event.keyCode in keyCodeModeMap && !aModeIsActive()) {
-          mode = keyCodeModeMap[d3.event.keyCode];
-          modes[mode] = true;
-          info("'" + mode + "' mode enabled");
-        }
-      }
-
-      function mousedown() {  
-        if (aModeIsActive()) {
-          modeCallback[getActiveMode()]();
-        } else {        
-          var point = d3.mouse(this);
-          addNode({x: point[0], y: point[1]});
-        }
-        update();
-      }            
-      
-      function deleteNode() {
-        var nodeElement = d3.event.target;
-        if (node.attr("class") == "node") {
-          deleteLink(nodes[nodeElement.id]);
-          nodes.splice(nodeElement.id, 1);
-          update();
-        }        
-      }
-
-      function addNode(node) {
-        if (!linkMode) {
-          nodes.push(node);
-        }
-
-        // add links to any nearby nodes
-        /*
-          nodes.forEach(function(target) {
-            var x = target.x - node.x,
-                y = target.y - node.y;
-            if (Math.sqrt(x * x + y * y) < 30) {
-              addLink(node, target);
-            }
-          });
-        */
-      }
-
-      function addLink(fromNode, toNode) {
-         links.push({source: fromNode, target: toNode});
-      }
-      
-      function linkExists(fromNode, toNode) {
-         return filter(links, function(aLink) {
-           return !(link.source == fromNode && link.target == toNode);
-         }).length > 0
-      }
-      
-      function deleteLink(node) {      
-        links = filter(links, function(link) {
-          return (link.source == node || link.target == node);
-        });
-      }
-
-      function tick() {
-        link.attr("x1", function(d) { return d.source.x; })
-            .attr("y1", function(d) { return d.source.y; })
-            .attr("x2", function(d) { return d.target.x; })
-            .attr("y2", function(d) { return d.target.y; });
-
-        node.attr("cx", function(d) { return d.x; })
-            .attr("cy", function(d) { return d.y; })
-            .attr("id", function(d, i) { return i; });
-      }
-
-
-      function update() {
-        var linkableBehavior = d3.behavior.drag()
-                               .on("dragstart", beginLinking)
-                               .on("drag", function (d) {
-                                 dragStarted = null;
-                               })
-                               .on("dragend", endLinking);
-
-
-        link = link.data(links);
-
-        link.enter().insert("line", ".node")
-            .attr("class", "link");
-        
-        link.exit().remove();
-https://www.youtube.com/watch?v=9eq0AeCBquE
-        node = node.data(nodes);
-
-        node.enter().insert("circle")
-            .attr("class", "node")
-            .attr("r", 7)
-            //.call(force.drag)
-            .call(linkableBehavior)
-            .on("mousedown", mouseDownNode);
-
-        node.exit().remove();
-        
-        force.start();
-      }
-
-      linkFrom = null;
-
-      function beginLinking(node) {    
-        if (modes["linking"]) {
-          info("Linking begins.");          
-          dragStarted = true;
-          linkFrom = node;
-          d3.event.sourceEvent.stopPropagation();
-        }
-      }
-
-      function allowLinking(event) {
-        info("Allow linking.");
-        return linkMode;
-      }
-
-      function dragLinking(event) {
-        info("drag...");
-      }
-
-      function reprNode(node) {
-        return "(" + node.x.toFixed(2) + ", " + node.y.toFixed(2) + ")";
-      }
-      
-      function reprLink(link) {
-        return reprNode(link.source) + " -- " + reprNode(link.target);
-      }
-      
-      function endLinking(fromNode) {  
-        var toNode = nodes[d3.event.sourceEvent.target.id]
-        if (isDefined(toNode) && modes["linking"] && fromNode != toNode) {
-          addLink(fromNode, toNode);
-          info("Link created from node " + reprNode(fromNode) + " to node " + 
-               reprNode(toNode) + ".");
-          update();
-          info("Linking ends.");
-        }
-      }
-
-      function mouseDownNode() { info("Node clicked.") };
-
-    </script>
+    <script src="./EulersGraphEditor.js" type="text/javascript"></script>
   </body>
 </html>
